@@ -41,6 +41,9 @@ from io import BytesIO
 
 from streamlit.runtime.uploaded_file_manager import UploadedFile
 
+from common.service.api_funifier_service import FunifierAPI
+from domain_objects.dto.common.api_config_dto import APIConfigsDTO, Header
+
 from htbuilder import HtmlElement, div, ul, li, br, hr, a, p, img, styles, classes, fonts
 from htbuilder.units import percent, px
 from htbuilder.funcs import rgba, rgb
@@ -52,17 +55,85 @@ st.set_page_config(
     layout="wide",
 )
 
+URL = "eu1.service.funifier.com"
+VERSION = "v3"
+HEADER = ""
+
 def main():
     try:
-        st.title("WhisperAI")
-        st.markdown("Transcribe your audio and video files with OpenAI's WhisperAI.")
+        st.title("Gamification Lottery Winners")
+        api_key = st.text_input(
+            "Please provide the API Key", 
+            "")
+        secret = st.text_input(
+            "Please provide the secret",
+            ""
+        )
+        lottery_uid = st.text_input(
+            "Please provide the lottery UID",
+            ""
+        )
+        ticket_uid = st.text_input(
+            "Please provide the lottery ticket UID",
+            ""
+        )
 
-        st.sidebar.markdown("## File Upload")
+        st.markdown("This Parameter have been loaded:")
+        st.markdown(f"- api_key: {api_key}")
+        st.markdown(f"- secret: {secret}")
+        st.markdown(f"- Lottery UID: {lottery_uid}")
+        st.markdown(f"- Ticket UID: {ticket_uid}")
+
+
+        if len(api_key) > 0 and \
+            len(secret) > 0 and \
+            len(lottery_uid) > 0 and \
+            len(ticket_uid) > 0:
+
+            api = get_funifier_api(
+                api_key,
+                secret)
+            
+            results = api.get_lottery_winners_with_address(
+                lotteryUID=lottery_uid,
+                ticketUID=ticket_uid
+            )
+            st.markdown("## Results:")
+            st.text(results)
+            csv = results.to_csv(index=False).encode('utf-8')
+
+            if len(csv) > 0:
+                st.download_button(
+                    label="Donwload Results as CSV",
+                    data=csv,
+                    file_name=f"{lottery_uid}.csv",
+                    mime="text/csv",
+                    key="download-csv"
+                )
 
         footer()
     except Exception as e:
         st.error(f"An error occurred: {str(e)}", icon="🚨")
         
+def get_funifier_api(
+    api_key:str,
+    secret:str
+    ) -> FunifierAPI:
+
+    config = APIConfigsDTO(
+        api_key=api_key,
+        app_secret=secret,
+        version="v3",
+        url=URL,
+        header=Header(
+            content_type="application/json",
+            range="items=0-1000000"
+        )
+    )
+
+    return FunifierAPI(config=config)
+
+
 
 #region streamlit helper functions
 def image(src_as_string, **style):
